@@ -37,11 +37,11 @@ func (m User) FindUserByEmail() (User, error) {
 // UserCreate email が重複していない場合にユーザを作成する
 func (m User) UserCreate() error {
 	db := database.Open()
-	_, err := m.FindUserByEmail()
+	user, err := m.FindUserByEmail()
 	if err != nil {
 		return err
 	}
-	err = db.Create(&m).Error
+	err = db.Create(&user).Error
 	if err != nil {
 		return err
 	}

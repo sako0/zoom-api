@@ -29,7 +29,7 @@ func CreateUser() echo.HandlerFunc {
 		}
 		err := user.UserCreate()
 		if err != nil {
-			return c.JSON(http.StatusOK, err)
+			return c.JSON(http.StatusInternalServerError, err)
 
 		}
 		return c.JSON(http.StatusOK, user)
