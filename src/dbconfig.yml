@@ -1,0 +1,10 @@
+development:
+  #使用するDBを選択している
+  dialect: mysql
+  #mysqlに接続するための情報を記入する
+  datasource: ${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST})/${MYSQL_DATABASE}?charset=utf8mb4&collation=utf8mb4_general_ci&parseTime=true
+  #実行するsqlファイルの場所を選択している
+  dir: sql/migrations
+
+  #マイグレーション履歴を保存するテーブル名
+  table: migration
