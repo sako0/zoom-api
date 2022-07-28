@@ -5,18 +5,8 @@ import (
 	"net/http"
 	"zoom-api/model"
 
-	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 )
-
-//ユーザを作成する
-func User() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		session, _ := session.Get("session", c)
-		profile := session.Values["profile"]
-		return c.JSON(http.StatusOK, profile)
-	}
-}
 
 //ユーザをgetする
 func FindOrCreateUser() echo.HandlerFunc {
