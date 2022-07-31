@@ -1,16 +1,19 @@
-package model
+package models
 
 import (
 	"errors"
-	"zoom-api/database"
+	"zoom-api/pkg/database"
 
 	"gorm.io/gorm"
 )
 
 type User struct {
 	gorm.Model
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Auth0Id          string `json:"auth0_id"`
+	Name             string `json:"name"`
+	Email            string `json:"email"`
+	ZoomToken        string `json:"zoom_token"`
+	ZoomRefreshToken string `json:"zoom_refresh_token"`
 }
 
 // FindUserById id が一致するアカウントを返す

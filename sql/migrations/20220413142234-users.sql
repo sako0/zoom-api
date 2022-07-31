@@ -1,8 +1,11 @@
 -- +migrate Up
 CREATE TABLE IF NOT EXISTS `users`(
     id bigint AUTO_INCREMENT NOT NULL,
+    auth0_id VARCHAR (255) NOT NULL,
     name VARCHAR (255) NOT NULL,
     email VARCHAR (255) NOT NULL,
+    zoom_token VARCHAR (1000) NOT NULL,
+    zoom_refresh_token VARCHAR (1000) NOT NULL,
     -- デフォルトはCURRENT_TIMESTAMPが設定されている
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,

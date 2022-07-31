@@ -6,16 +6,17 @@ services:
       dockerfile: ./docker_go/Dockerfile
     tty: true # コンテナの永続化
     environment:
-      GOPATH: '/go'
+      GOPATH: '/go/src'
+      GOROOT: '/usr/local/go'
       MYSQL_USER: 'root'
       MYSQL_PASSWORD: 'pass'
       MYSQL_DATABASE: 'go_development'
       MYSQL_HOST: 'db'
       MYSQL_PORT: '3306'
     ports:
-      - 1323:1323
+      - 8080:8080
     volumes:
-      - ./src:/src # マウントディレクトリ
+      - ./:/go/src/zoom-api # マウントディレクトリ
     depends_on:
       - db
 
@@ -34,3 +35,4 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: "pass"
       MYSQL_DATABASE: 'go_development'
+      MYSQL_ROOT_HOST: "%"

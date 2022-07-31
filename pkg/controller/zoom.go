@@ -2,7 +2,6 @@ package controller
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -26,9 +25,6 @@ type CreateZoomResponse struct {
 
 func CreateZoom() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// ssl認証を無視する
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-
 		zoom := new(model.Zoom)
 		if err := c.Bind(zoom); err != nil {
 			return err
@@ -63,10 +59,51 @@ func CreateZoom() echo.HandlerFunc {
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(string(body))
 		response := new(CreateZoomResponse)
 		json.Unmarshal(body, &response)
 
 		return c.JSON(http.StatusOK, response)
 	}
+}
+
+type Meeting struct {
+	Id        int    `json:"id"`
+	CreatedAt string `json:"created_at"`
+	JoinUrl   string `json:"join_url"`
+	StartTime string `json:"start_time"`
+	Topic     string `json:"topic"`
+}
+type MyZoomListResponse struct {
+	Meetings []*Meeting `json:"meetings"`
+}
+
+func MyZoomList() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		req, err := http.NewRequest("GET", "https://"+os.Getenv("ZOOM_DOMAIN")+"/users/me/meetings?type=live", nil)
+		if err != nil {
+			fmt.Println(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+c.QueryParam("token"))
+		client := new(http.Client)
+		res, err := client.Do(req)
+		if err != nil {
+			fmt.Println(err)
+		}
+		if res.StatusCode != 200 {
+			fmt.Println(res.Status)
+			c.JSON(res.StatusCode, res.Status)
+		}
+
+		defer res.Body.Close()
+
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			fmt.Println(err)
+		}
+		response := new(MyZoomListResponse)
+		json.Unmarshal(body, &response)
+		return c.JSON(http.StatusOK, response)
+	}
+
 }
