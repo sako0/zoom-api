@@ -36,3 +36,14 @@ services:
       MYSQL_ROOT_PASSWORD: "pass"
       MYSQL_DATABASE: 'go_development'
       MYSQL_ROOT_HOST: "%"
+
+  ngrok:
+    image: wernight/ngrok:latest
+    ports:
+      - 4040:4040
+    environment:
+      NGROK_PROTOCOL: http
+      NGROK_PORT: go:8080
+     #NGROK_AUTH: ${NGROK_AUTH}
+    depends_on:
+      - go

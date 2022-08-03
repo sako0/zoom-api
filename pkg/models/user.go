@@ -16,10 +16,11 @@ type User struct {
 	ZoomRefreshToken string `json:"zoom_refresh_token"`
 }
 
-// FindUserById id が一致するアカウントを返す
-func (m User) FindUserById(id string) (User, error) {
+// FindUserByAuth0Id Auth0Id が一致するアカウントを返す
+func (m User) FindUserByAuth0Id() (User, error) {
 	db := database.Open()
-	if err := db.First(&m, id).Error; err != nil {
+	err := db.Where("auth0_id = ?", m.Auth0Id).First(&m).Error
+	if err != nil {
 		return m, err
 	}
 	return m, nil
@@ -37,16 +38,24 @@ func (m User) FindUserByEmail() (User, error) {
 	return m, nil
 }
 
-// UserCreate email が重複していない場合にユーザを作成する
-func (m User) UserCreate() error {
+// UserCreate Auth0Id が重複していない場合にユーザを作成する
+func (m User) UserCreateOrUpdate() error {
 	db := database.Open()
-	user, err := m.FindUserByEmail()
+	user, err := m.FindUserByAuth0Id()
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = db.Create(&m).Error
+			if err != nil {
+				return err
+			}
+			return nil
+		}
 		return err
 	}
-	err = db.Create(&user).Error
+	err = db.First(&user, user.ID).Updates(User{ZoomToken: m.ZoomToken, ZoomRefreshToken: m.ZoomRefreshToken}).Error
 	if err != nil {
 		return err
 	}
 	return nil
+
 }
