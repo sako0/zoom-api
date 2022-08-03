@@ -28,6 +28,7 @@ const (
 // ZoomServiceClient is a client for the zoom.v1.ZoomService service.
 type ZoomServiceClient interface {
 	CreateZoom(context.Context, *connect_go.Request[v1.CreateZoomRequest]) (*connect_go.Response[v1.CreateZoomResponse], error)
+	GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error)
 }
 
 // NewZoomServiceClient constructs a client for the zoom.v1.ZoomService service. By default, it uses
@@ -45,12 +46,18 @@ func NewZoomServiceClient(httpClient connect_go.HTTPClient, baseURL string, opts
 			baseURL+"/zoom.v1.ZoomService/CreateZoom",
 			opts...,
 		),
+		getZoomList: connect_go.NewClient[v1.GetZoomListRequest, v1.GetZoomListResponse](
+			httpClient,
+			baseURL+"/zoom.v1.ZoomService/GetZoomList",
+			opts...,
+		),
 	}
 }
 
 // zoomServiceClient implements ZoomServiceClient.
 type zoomServiceClient struct {
-	createZoom *connect_go.Client[v1.CreateZoomRequest, v1.CreateZoomResponse]
+	createZoom  *connect_go.Client[v1.CreateZoomRequest, v1.CreateZoomResponse]
+	getZoomList *connect_go.Client[v1.GetZoomListRequest, v1.GetZoomListResponse]
 }
 
 // CreateZoom calls zoom.v1.ZoomService.CreateZoom.
@@ -58,9 +65,15 @@ func (c *zoomServiceClient) CreateZoom(ctx context.Context, req *connect_go.Requ
 	return c.createZoom.CallUnary(ctx, req)
 }
 
+// GetZoomList calls zoom.v1.ZoomService.GetZoomList.
+func (c *zoomServiceClient) GetZoomList(ctx context.Context, req *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error) {
+	return c.getZoomList.CallUnary(ctx, req)
+}
+
 // ZoomServiceHandler is an implementation of the zoom.v1.ZoomService service.
 type ZoomServiceHandler interface {
 	CreateZoom(context.Context, *connect_go.Request[v1.CreateZoomRequest]) (*connect_go.Response[v1.CreateZoomResponse], error)
+	GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error)
 }
 
 // NewZoomServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -75,6 +88,11 @@ func NewZoomServiceHandler(svc ZoomServiceHandler, opts ...connect_go.HandlerOpt
 		svc.CreateZoom,
 		opts...,
 	))
+	mux.Handle("/zoom.v1.ZoomService/GetZoomList", connect_go.NewUnaryHandler(
+		"/zoom.v1.ZoomService/GetZoomList",
+		svc.GetZoomList,
+		opts...,
+	))
 	return "/zoom.v1.ZoomService/", mux
 }
 
@@ -83,4 +101,8 @@ type UnimplementedZoomServiceHandler struct{}
 
 func (UnimplementedZoomServiceHandler) CreateZoom(context.Context, *connect_go.Request[v1.CreateZoomRequest]) (*connect_go.Response[v1.CreateZoomResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("zoom.v1.ZoomService.CreateZoom is not implemented"))
+}
+
+func (UnimplementedZoomServiceHandler) GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("zoom.v1.ZoomService.GetZoomList is not implemented"))
 }

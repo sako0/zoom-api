@@ -2,18 +2,24 @@ package models
 
 import (
 	"errors"
+	"time"
 	"zoom-api/pkg/database"
 
 	"gorm.io/gorm"
 )
 
 type User struct {
-	gorm.Model
-	Auth0Id          string `json:"auth0_id"`
-	Name             string `json:"name"`
-	Email            string `json:"email"`
-	ZoomToken        string `json:"zoom_token"`
-	ZoomRefreshToken string `json:"zoom_refresh_token"`
+	ID                  uint32               `gorm:"primarykey"`
+	Auth0Id             string               `json:"auth0_id"`
+	ZoomUserId          string               `json:"zoom_user_id"`
+	Name                string               `json:"name"`
+	Email               string               `json:"email"`
+	ZoomToken           string               `json:"zoom_token"`
+	ZoomRefreshToken    string               `json:"zoom_refresh_token"`
+	OrganizationMembers []OrganizationMember `gorm:"foreignKey:UserId"`
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DeletedAt           gorm.DeletedAt `gorm:"index"`
 }
 
 // FindUserByAuth0Id Auth0Id が一致するアカウントを返す
