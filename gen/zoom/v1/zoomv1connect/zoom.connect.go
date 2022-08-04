@@ -28,7 +28,7 @@ const (
 // ZoomServiceClient is a client for the zoom.v1.ZoomService service.
 type ZoomServiceClient interface {
 	CreateZoom(context.Context, *connect_go.Request[v1.CreateZoomRequest]) (*connect_go.Response[v1.CreateZoomResponse], error)
-	GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error)
+	GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.ServerStreamForClient[v1.GetZoomListResponse], error)
 }
 
 // NewZoomServiceClient constructs a client for the zoom.v1.ZoomService service. By default, it uses
@@ -66,14 +66,14 @@ func (c *zoomServiceClient) CreateZoom(ctx context.Context, req *connect_go.Requ
 }
 
 // GetZoomList calls zoom.v1.ZoomService.GetZoomList.
-func (c *zoomServiceClient) GetZoomList(ctx context.Context, req *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error) {
-	return c.getZoomList.CallUnary(ctx, req)
+func (c *zoomServiceClient) GetZoomList(ctx context.Context, req *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.ServerStreamForClient[v1.GetZoomListResponse], error) {
+	return c.getZoomList.CallServerStream(ctx, req)
 }
 
 // ZoomServiceHandler is an implementation of the zoom.v1.ZoomService service.
 type ZoomServiceHandler interface {
 	CreateZoom(context.Context, *connect_go.Request[v1.CreateZoomRequest]) (*connect_go.Response[v1.CreateZoomResponse], error)
-	GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error)
+	GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest], *connect_go.ServerStream[v1.GetZoomListResponse]) error
 }
 
 // NewZoomServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -88,7 +88,7 @@ func NewZoomServiceHandler(svc ZoomServiceHandler, opts ...connect_go.HandlerOpt
 		svc.CreateZoom,
 		opts...,
 	))
-	mux.Handle("/zoom.v1.ZoomService/GetZoomList", connect_go.NewUnaryHandler(
+	mux.Handle("/zoom.v1.ZoomService/GetZoomList", connect_go.NewServerStreamHandler(
 		"/zoom.v1.ZoomService/GetZoomList",
 		svc.GetZoomList,
 		opts...,
@@ -103,6 +103,6 @@ func (UnimplementedZoomServiceHandler) CreateZoom(context.Context, *connect_go.R
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("zoom.v1.ZoomService.CreateZoom is not implemented"))
 }
 
-func (UnimplementedZoomServiceHandler) GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest]) (*connect_go.Response[v1.GetZoomListResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("zoom.v1.ZoomService.GetZoomList is not implemented"))
+func (UnimplementedZoomServiceHandler) GetZoomList(context.Context, *connect_go.Request[v1.GetZoomListRequest], *connect_go.ServerStream[v1.GetZoomListResponse]) error {
+	return connect_go.NewError(connect_go.CodeUnimplemented, errors.New("zoom.v1.ZoomService.GetZoomList is not implemented"))
 }

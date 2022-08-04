@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 	userv1 "zoom-api/gen/user/v1"
 	"zoom-api/gen/user/v1/userv1connect"
 	"zoom-api/pkg/models"
@@ -22,6 +23,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
+
+var connection bool
 
 type UserServer struct {
 	userv1connect.UserServiceHandler
@@ -149,37 +152,62 @@ func getZoomInfo(zoomToken string) *zoomv1.CreateZoomResponse {
 	return response
 }
 
-func (zs *ZoomServer) GetZoomList(
-	ctx context.Context,
+func (zs *ZoomServer) GetZoomList(ctx context.Context,
 	req *connect.Request[zoomv1.GetZoomListRequest],
-) (*connect.Response[zoomv1.GetZoomListResponse], error) {
+	stream *connect.ServerStream[zoomv1.GetZoomListResponse]) error {
+	var (
+		ticker = time.NewTicker(time.Duration(1) * time.Second)
+	)
 	om := models.OrganizationMember{OrganizationId: 1}
 	members, err := om.GetOrganizationMemberListByOrganizationId()
 	if err != nil {
 		panic("GetZoomListのmembersが取得できていない")
 	}
-
-	zoomInfoList := []*zoomv1.ZoomInfo{}
+	connection = true
 	// user := models.User{}
 	// db := database.Open()
-	for _, member := range members {
-		// err := db.First(&user, member.UserId).Error
-		fmt.Println(member.User.Name)
-		if err != nil {
-			fmt.Println("DBの読み込みに失敗")
-			return nil, err
+
+	// res := connect.NewResponse(&zoomv1.GetZoomListResponse{ZoomList: zoomInfoList})
+	// res.Header().Set("Zoom-Version", "v1")
+
+loop:
+	for {
+		select {
+		// コネクションが切断されていたらループを抜ける。
+		case <-ctx.Done():
+			break loop
+		case <-ticker.C:
 		}
-		zoomList, err := getZoomListByZoomUserId(member.User.ZoomUserId, req.Msg.GetZoomToken())
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
+		if connection {
+			zoomInfoList := []*zoomv1.ZoomInfo{}
+			for _, member := range members {
+				if err != nil {
+					fmt.Println("DBの読み込みに失敗")
+					return err
+				}
+				zoomList, err := getZoomListByZoomUserId(member.User.ZoomUserId, req.Msg.ZoomToken)
+				if err != nil {
+					fmt.Println(err)
+					return err
+				}
+				fmt.Println(zoomList)
+				info := &zoomv1.ZoomInfo{ZoomUserId: member.User.ZoomUserId, ZoomMeetingList: zoomList}
+				zoomInfoList = append(zoomInfoList, info)
+			}
+
+			if err = stream.Send(&zoomv1.GetZoomListResponse{
+				ZoomList: zoomInfoList,
+			}); err != nil {
+				return err
+			}
+
+			connection = false
+
 		}
-		info := &zoomv1.ZoomInfo{ZoomUserId: member.User.ZoomUserId, ZoomMeetingList: zoomList}
-		zoomInfoList = append(zoomInfoList, info)
+
 	}
-	res := connect.NewResponse(&zoomv1.GetZoomListResponse{ZoomList: zoomInfoList})
-	res.Header().Set("Zoom-Version", "v1")
-	return res, nil
+	return nil
+
 }
 
 type ZoomMeeting struct {
@@ -195,6 +223,7 @@ type GetZoomListByZoomUserIdResponse struct {
 }
 
 func getZoomListByZoomUserId(zoomUserId string, zoomToken string) ([]*zoomv1.ZoomMeetingInfo, error) {
+
 	req, err := http.NewRequest("GET", "https://"+os.Getenv("ZOOM_DOMAIN")+"/users/"+zoomUserId+"/meetings?type=live", nil)
 	if err != nil {
 		fmt.Println(err)
@@ -203,32 +232,53 @@ func getZoomListByZoomUserId(zoomUserId string, zoomToken string) ([]*zoomv1.Zoo
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+zoomToken)
 	client := new(http.Client)
-	res, err := client.Do(req)
-	if err != nil {
+	resChan := make(chan *http.Response, 1)
+	errChan := make(chan error, 1)
+	go func() {
+		res, err := client.Do(req)
+		resChan <- res
+		errChan <- err
+	}()
+	select {
+	case res := <-resChan:
+		if res.StatusCode != 200 {
+			fmt.Println(res.Status)
+			panic("/meetings?type=live取得中の通信エラー")
+		}
+
+		defer res.Body.Close()
+
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		response := new(GetZoomListByZoomUserIdResponse)
+		json.Unmarshal(body, &response)
+		zoomMeetingInfoList := []*zoomv1.ZoomMeetingInfo{}
+		for _, meeting := range response.Meetings {
+			info := &zoomv1.ZoomMeetingInfo{Id: uint32(meeting.Id), CreatedAt: meeting.CreatedAt, JoinUrl: meeting.JoinUrl, StartUrl: meeting.StartUrl, Topic: meeting.Topic, HostId: meeting.HostId}
+			zoomMeetingInfoList = append(zoomMeetingInfoList, info)
+		}
+		return zoomMeetingInfoList, err
+	case err := <-errChan:
 		fmt.Println(err)
 		return nil, err
 	}
-	if res.StatusCode != 200 {
-		fmt.Println(res.Status)
-		panic("/meetings?type=live取得中の通信エラー")
-	}
 
-	defer res.Body.Close()
+}
+func Notifications(w http.ResponseWriter, r *http.Request) {
 
-	body, err := ioutil.ReadAll(res.Body)
+	fmt.Println(r.Body)
+	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println(err)
-		return nil, err
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
-	response := new(GetZoomListByZoomUserIdResponse)
-	json.Unmarshal(body, &response)
-	zoomMeetingInfoList := []*zoomv1.ZoomMeetingInfo{}
-	for _, meeting := range response.Meetings {
-		info := &zoomv1.ZoomMeetingInfo{Id: uint32(meeting.Id), CreatedAt: meeting.CreatedAt, JoinUrl: meeting.JoinUrl, StartUrl: meeting.StartUrl, Topic: meeting.Topic, HostId: meeting.HostId}
-		zoomMeetingInfoList = append(zoomMeetingInfoList, info)
+	fmt.Println(string(buf))
+	if len(buf) > 0 {
+		connection = true
 	}
-
-	return zoomMeetingInfoList, err
 
 }
 
@@ -237,7 +287,6 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatalf("Failed to load the env vars: %v", err)
 	}
-
 	// user
 	mux := http.NewServeMux()
 	userPath, userH := userv1connect.NewUserServiceHandler(&UserServer{})
@@ -248,6 +297,9 @@ func main() {
 	zoomPath, zoomH := zoomv1connect.NewZoomServiceHandler(&ZoomServer{})
 	zoomHandler := cors.AllowAll().Handler(zoomH)
 	mux.Handle(zoomPath, zoomHandler)
+
+	// event notifications
+	mux.Handle("/notifications", http.HandlerFunc(Notifications))
 
 	err := http.ListenAndServe(
 		"0.0.0.0:8080",
